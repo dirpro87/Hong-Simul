@@ -141,9 +141,9 @@ var KOREA={team:'한국 🇰🇷',grp:'A',pts:3,gd:-1,gf:2};
 var DONE=[
   {grp:'A',third:{team:'한국 🇰🇷',pts:3,gd:-1,gf:2}},
   {grp:'B',third:{team:'보스니아 🇧🇦',pts:4,gd:-1,gf:5}},
+  {grp:'C',third:{team:'스코틀랜드 🏴',pts:3,gd:-3,gf:1}},
 ];
 var SIMS=[
-  {grp:'C',st:[{t:'브라질',p:4,gf:4,ga:1},{t:'모로코',p:4,gf:2,ga:1},{t:'스코틀랜드',p:3,gf:1,ga:1},{t:'아이티',p:0,gf:0,ga:4}],m:[[2,0,.12,.20,.68],[1,3,.80,.13,.07]]},
   {grp:'D',st:[{t:'미국',p:6,gf:6,ga:1},{t:'호주',p:3,gf:2,ga:2},{t:'파라과이',p:3,gf:2,ga:4},{t:'튀르키예',p:0,gf:0,ga:3}],m:[[3,0,.05,.12,.83],[2,1,.35,.28,.37]]},
   {grp:'E',st:[{t:'독일',p:6,gf:9,ga:2},{t:'코트디부아르',p:3,gf:2,ga:2},{t:'에콰도르',p:1,gf:0,ga:1},{t:'퀴라소',p:1,gf:1,ga:7}],m:[[2,0,.10,.25,.65],[3,1,.08,.15,.77]]},
   {grp:'F',st:[{t:'네덜란드',p:4,gf:7,ga:3},{t:'일본',p:4,gf:6,ga:2},{t:'스웨덴',p:3,gf:6,ga:6},{t:'튀니지',p:0,gf:1,ga:9}],m:[[1,2,.40,.30,.30],[3,0,.04,.10,.86]]},
@@ -154,7 +154,7 @@ var SIMS=[
   {grp:'K',st:[{t:'콜롬비아',p:6,gf:4,ga:1},{t:'포르투갈',p:4,gf:6,ga:1},{t:'DR콩고',p:1,gf:1,ga:2},{t:'우즈벡',p:0,gf:1,ga:8}],m:[[3,2,.18,.22,.60],[0,1,.32,.28,.40]]},
   {grp:'L',st:[{t:'잉글랜드',p:4,gf:4,ga:2},{t:'가나',p:4,gf:1,ga:0},{t:'크로아티아',p:3,gf:3,ga:4},{t:'파나마',p:0,gf:0,ga:2}],m:[[2,1,.38,.28,.34],[3,0,.05,.12,.83]]},
 ];
-var GRP_ORDER=['C','D','E','F','G','H','I','J','K','L'];
+var GRP_ORDER=['D','E','F','G','H','I','J','K','L'];
 
 var SW=[[1,0,.30],[2,0,.20],[2,1,.25],[3,0,.08],[3,1,.12],[4,1,.05]];
 var SD=[[0,0,.35],[1,1,.40],[2,2,.18],[3,3,.07]];
@@ -192,7 +192,7 @@ async function run(){
 
   // Init dots
   var dotsHtml='';
-  for(var i=0;i<10;i++)dotsHtml+='<div class="dot" id="dot'+i+'"></div>';
+  for(var i=0;i<9;i++)dotsHtml+='<div class="dot" id="dot'+i+'"></div>';
   document.getElementById('dots').innerHTML=dotsHtml;
 
   // Start with known thirds
