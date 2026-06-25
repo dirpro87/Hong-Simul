@@ -171,7 +171,13 @@ function getRank(thirds){
   return{sorted:a,kr:kr};
 }
 
-var lastThirds=null,lastRank=0;
+var lastThirds=null,lastRank=0,lastOpponent='',lastOppGrp='';
+var eWinner='',gWinner='';
+
+function getFirst(st){
+  var s=st.slice().sort(function(a,b){return(b.p-a.p)||((b.gf-b.ga)-(a.gf-a.ga))||(b.gf-a.gf);});
+  return s[0].t;
+}
 
 async function run(){
   var btn=document.getElementById('go');
@@ -209,6 +215,8 @@ async function run(){
       matches.push({a:st[m[0]].t,b:st[m[1]].t,sa:sc[0],sb:sc[1]});
     });
     var third=getThird(st);third.grp=g.grp;
+    if(g.grp==='E') eWinner=getFirst(st);
+    if(g.grp==='G') gWinner=getFirst(st);
     allRes.push({grp:g.grp,matches:matches,third:third});
   });
 
@@ -256,6 +264,10 @@ async function run(){
   lastThirds=getRank(thirds).sorted;
   lastRank=getRank(thirds).kr;
 
+  // 32강 상대 결정: 4.85% 확률로 E조 1위(독일), 95.15% 확률로 G조 1위
+  if(Math.random()<0.0485){lastOpponent=eWinner;lastOppGrp='E';}
+  else{lastOpponent=gWinner;lastOppGrp='G';}
+
   await delay(300);
 
   // Show final table
@@ -272,7 +284,8 @@ async function run(){
 
   var rb=document.getElementById('rb');
   var win=lastRank<=8;
-  rb.innerHTML='<img src="'+(win?IH:IS)+'"><div class="msg '+(win?'w':'l')+'">'+(win?'역시 홍버지! 32강 진출!':'멸 망')+'</div><div class="ct">3위 팀 중 '+lastRank+'위'+(win?(lastRank<=4?' — 여유있게 통과!':' — 아슬아슬 통과!'):'  — 컷라인 밖...')+'</div>';
+  var oppText=win?'<div style="margin-top:10px;padding:10px;background:#111d30;border:1px solid #1e3050;border-radius:8px;font-size:13px"><span style="color:#889">32강 상대 ('+lastOppGrp+'조 1위)</span><br><span style="font-size:18px;font-weight:900;color:#6ea8ff">vs '+lastOpponent+'</span></div>':'';
+  rb.innerHTML='<img src="'+(win?IH:IS)+'"><div class="msg '+(win?'w':'l')+'">'+(win?'역시 홍버지! 32강 진출!':'멸 망')+'</div><div class="ct">3위 팀 중 '+lastRank+'위'+(win?(lastRank<=4?' — 여유있게 통과!':' — 아슬아슬 통과!'):'  — 컷라인 밖...')+'</div>'+oppText;
   rb.className='rb v';
   document.getElementById('shb').style.display='block';
   drawCard();
@@ -307,6 +320,7 @@ function drawCard(){
     x.fillStyle=win?'#fbbf24':'#888';x.fillText(win?'역시 홍버지! 32강 진출!':'멸 망',W/2,125);
     x.font='bold 12px -apple-system,"Malgun Gothic",sans-serif';x.fillStyle='#aab';
     x.fillText('3위 팀 중 '+lastRank+'위 | 대한민국 32강 시뮬레이터',W/2,145);
+    if(win){x.font='bold 14px -apple-system,"Malgun Gothic",sans-serif';x.fillStyle='#6ea8ff';x.fillText('32강 상대: vs '+lastOpponent+' ('+lastOppGrp+'조 1위)',W/2,166);}
     var ty=168;
     x.font='bold 10px -apple-system,sans-serif';x.fillStyle='#556';x.textAlign='left';
     x.fillText('#',25,ty);x.fillText('조',50,ty);x.fillText('팀',80,ty);
@@ -326,7 +340,7 @@ function drawCard(){
     });
     var fy=ty+5+lastThirds.length*38+10;x.fillStyle='#111d30';rf(x,20,fy,W-40,30);
     x.font='600 11px -apple-system,"Malgun Gothic",sans-serif';x.fillStyle='#556';x.textAlign='center';
-    x.fillText('dirpro87.github.io/Hong-Simul',W/2,fy+20);
+    x.fillText('2026 FIFA 월드컵 32강 시뮬레이터',W/2,fy+20);
   };img.src=win?IH:IS;
 }
 function dl(){
