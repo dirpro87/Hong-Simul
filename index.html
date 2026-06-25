@@ -113,9 +113,9 @@ body{min-height:100vh;min-height:100dvh;background:#0a1628;color:#e8edf5;font-fa
 
   <div class="result-box" id="resultBox"></div>
   <div class="share-box" id="shareBox" style="display:none">
-    <button class="btn-share" id="btnShare" onclick="shareResult()">📤 결과 공유하기</button>
-    <button class="btn-share" id="btnCopy" onclick="copyLink()">🔗 링크 복사</button>
+    <button class="btn-share" id="btnSave" onclick="saveResultImage()">📸 결과 이미지 저장/공유</button>
   </div>
+  <canvas id="shareCanvas" style="display:none"></canvas>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -188,10 +188,12 @@ async function simulate() {
   document.getElementById('scoreBar').style.display='block';
 
   let pc=0;
+  matchResults = [];
   for(let i=0;i<M.length;i++){
     await delay(350+Math.random()*250);
     const m=M[i], ok=Math.random()<m.p;
     if(ok) pc++;
+    matchResults.push({g:m.g, text:ok?m.y:m.n, ok:ok, prob:Math.round(m.p*100)});
     const el=document.getElementById('m'+i);
     el.classList.remove('pending');
     el.classList.add(ok?'pass':'fail');
@@ -219,66 +221,169 @@ async function simulate() {
   btn.textContent='🔥 다시 가즈아 🔥';
 }
 
-function getShareText() {
-  const win = lastResult >= 3;
-  return win
-    ? '🇰🇷 대한민국 32강 시뮬레이션 결과: '+lastResult+'/9 충족!\n역시 홍버지! 32강 진출! ⚽🔥\n\n너도 해봐 👇\n'+SITE_URL
-    : '🇰🇷 대한민국 32강 시뮬레이션 결과: '+lastResult+'/9 충족...\n멸망 😭\n\n너도 해봐 👇\n'+SITE_URL;
-}
+var matchResults = []; // store results for image generation
 
-function shareResult() {
-  var txt = getShareText();
-  // navigator.share: text만 넘김 (text+url 동시 전달 시 일부 브라우저 충돌)
-  if (typeof navigator.share === 'function') {
-    try {
-      navigator.share({text:txt}).then(function(){}).catch(function(err){
-        if (err.name !== 'AbortError') { doCopy(txt,'btnShare'); }
-      });
-    } catch(e) { doCopy(txt,'btnShare'); }
-  } else {
-    doCopy(txt,'btnShare');
+function generateResultImage() {
+  var c = document.getElementById('shareCanvas');
+  var W = 720, H = 980;
+  c.width = W; c.height = H;
+  var ctx = c.getContext('2d');
+  var win = lastResult >= 3;
+
+  // background
+  ctx.fillStyle = '#0a1628';
+  ctx.fillRect(0, 0, W, H);
+
+  // subtle gradient overlay
+  var grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, 'rgba(108,32,255,0.08)');
+  grd.addColorStop(1, 'rgba(230,57,70,0.08)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  // top bar
+  ctx.fillStyle = win ? '#14532d' : '#1a1020';
+  ctx.beginPath();
+  roundRect(ctx, 0, 0, W, 130, 0);
+  ctx.fill();
+
+  // title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 28px "Noto Sans KR", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🇰🇷 대한민국 32강 시뮬레이터', W/2, 50);
+
+  // result message
+  ctx.font = '900 38px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = win ? '#fbbf24' : '#888888';
+  ctx.fillText(win ? '역시 홍버지! 32강 진출! ⚽' : '멸 망 😭', W/2, 100);
+
+  // score bar background
+  var barY = 148, barH = 18, barPad = 40;
+  ctx.fillStyle = '#1e3050';
+  roundRectFill(ctx, barPad, barY, W - barPad*2, barH, 9);
+
+  // score bar fill
+  var fillW = (W - barPad*2) * (lastResult/9);
+  var barGrd = ctx.createLinearGradient(barPad, 0, barPad + fillW, 0);
+  barGrd.addColorStop(0, '#e63946');
+  barGrd.addColorStop(1, '#22c55e');
+  ctx.fillStyle = barGrd;
+  roundRectFill(ctx, barPad, barY, fillW, barH, 9);
+
+  // threshold line
+  var threshX = barPad + (W - barPad*2) * (3/9);
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(threshX, barY - 3);
+  ctx.lineTo(threshX, barY + barH + 3);
+  ctx.stroke();
+
+  // score label
+  ctx.font = '700 14px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = '#8899aa';
+  ctx.textAlign = 'left';
+  ctx.fillText(lastResult + '/9 충족', barPad, barY + barH + 20);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillText('필요: 3개 ▲', W - barPad, barY + barH + 20);
+
+  // match results
+  var startY = 210;
+  ctx.textAlign = 'left';
+  for (var i = 0; i < matchResults.length; i++) {
+    var mr = matchResults[i];
+    var y = startY + i * 72;
+    var ok = mr.ok;
+
+    // card bg
+    ctx.fillStyle = ok ? '#0d2818' : '#111520';
+    ctx.globalAlpha = ok ? 1 : 0.6;
+    roundRectFill(ctx, 24, y, W - 48, 62, 10);
+    ctx.globalAlpha = 1;
+
+    // card border
+    ctx.strokeStyle = ok ? '#22c55e' : '#333333';
+    ctx.lineWidth = 1.5;
+    roundRectStroke(ctx, 24, y, W - 48, 62, 10);
+
+    // group badge
+    ctx.fillStyle = ok ? '#14532d' : '#1a1a2e';
+    roundRectFill(ctx, 36, y + 16, 50, 30, 6);
+    ctx.font = '900 13px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = ok ? '#4ade80' : '#555555';
+    ctx.textAlign = 'center';
+    ctx.fillText(mr.g, 61, y + 37);
+
+    // result text
+    ctx.textAlign = 'left';
+    ctx.font = '700 14px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = ok ? '#86efac' : '#666666';
+    ctx.fillText(mr.text, 100, y + 37);
+
+    // prob
+    ctx.textAlign = 'right';
+    ctx.font = '600 12px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = ok ? '#4ade80' : '#555555';
+    ctx.fillText(mr.prob + '%', W - 70, y + 37);
+
+    // icon
+    ctx.font = '18px sans-serif';
+    ctx.fillText(ok ? '✅' : '❌', W - 38, y + 39);
   }
-}
-function copyLink() { doCopy(SITE_URL,'btnCopy'); }
 
-function doCopy(text,btnId) {
-  // 1차: Clipboard API
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function(){ showDone(btnId); return; }).catch(function(){ legacyCopy(text,btnId); });
-      return;
+  // bottom URL bar
+  var bottomY = startY + 9 * 72 + 14;
+  ctx.fillStyle = '#111d30';
+  roundRectFill(ctx, 24, bottomY, W - 48, 44, 10);
+  ctx.font = '600 13px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = '#556677';
+  ctx.textAlign = 'center';
+  ctx.fillText('너도 해봐 👉 ' + SITE_URL, W/2, bottomY + 28);
+
+  return c;
+}
+
+async function saveResultImage() {
+  var btn = document.getElementById('btnSave');
+  btn.innerHTML = '⏳ 이미지 생성 중...';
+
+  await delay(100);
+  var canvas = generateResultImage();
+
+  canvas.toBlob(async function(blob) {
+    var file = new File([blob], 'worldcup-result.png', {type:'image/png'});
+
+    // 모바일: 이미지 파일 공유 시도
+    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+      try {
+        await navigator.share({files:[file], title:'대한민국 32강 시뮬레이터'});
+        btn.innerHTML = '📸 결과 이미지 저장/공유';
+        return;
+      } catch(e) {
+        if (e.name === 'AbortError') { btn.innerHTML = '📸 결과 이미지 저장/공유'; return; }
+      }
     }
-  } catch(e) {}
-  // 2차: execCommand
-  legacyCopy(text,btnId);
+
+    // 폴백: 이미지 다운로드
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'worldcup-result.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    showToast('이미지가 저장되었습니다!');
+    btn.innerHTML = '📸 결과 이미지 저장/공유';
+  }, 'image/png');
 }
-function legacyCopy(text,btnId) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.setAttribute('readonly','');
-  ta.style.cssText = 'position:absolute;left:-9999px;top:0;opacity:0;font-size:16px';
-  document.body.appendChild(ta);
-  var range = document.createRange();
-  range.selectNodeContents(ta);
-  var sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  ta.setSelectionRange(0, 999999);
-  var ok = false;
-  try { ok = document.execCommand('copy'); } catch(e) {}
-  document.body.removeChild(ta);
-  if (ok) { showDone(btnId); }
-  else { showToast('텍스트를 길게 눌러 복사해주세요'); }
-}
-function showDone(btnId) {
-  var btn = document.getElementById(btnId);
-  if (!btn) return;
-  var orig = btn.innerHTML;
-  btn.innerHTML = '✅ 복사 완료!';
-  btn.classList.add('copied');
-  showToast('클립보드에 복사됨!');
-  setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
-}
+
+// canvas helpers
+function roundRect(ctx,x,y,w,h,r){ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);}
+function roundRectFill(ctx,x,y,w,h,r){ctx.beginPath();roundRect(ctx,x,y,w,h,r);ctx.fill();}
+function roundRectStroke(ctx,x,y,w,h,r){ctx.beginPath();roundRect(ctx,x,y,w,h,r);ctx.stroke();}
+
 function showToast(msg) {
   var t = document.getElementById('toast');
   t.textContent = msg;
