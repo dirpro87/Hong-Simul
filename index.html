@@ -226,7 +226,6 @@ async function simulate() {
 }
 
 var matchResults = [];
-var imageBlob = null;
 
 function drawResultCard() {
   var win = lastResult >= 3;
@@ -349,16 +348,23 @@ function drawResultCard() {
     ctx.fillStyle = '#556677';
     ctx.textAlign = 'center';
     ctx.fillText('dirpro87.github.io/Hong-Simul', W/2, fY+23);
-
-    c.toBlob(function(b){ imageBlob = b; }, 'image/png');
   };
   photo.src = imgSrc;
 }
 
+function canvasToBlob(canvas) {
+  var url = canvas.toDataURL('image/png');
+  var parts = url.split(',');
+  var raw = atob(parts[1]);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return new Blob([arr], {type:'image/png'});
+}
+
 function downloadImage() {
-  if (!imageBlob) { showToast('잠시 후 다시 시도해주세요'); return; }
+  var blob = canvasToBlob(document.getElementById('shareCanvas'));
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(imageBlob);
+  a.href = URL.createObjectURL(blob);
   a.download = 'worldcup-result.png';
   document.body.appendChild(a);
   a.click();
@@ -368,16 +374,12 @@ function downloadImage() {
 }
 
 async function shareImage() {
-  if (!imageBlob) { showToast('잠시 후 다시 시도해주세요'); return; }
-  var file = new File([imageBlob], 'worldcup-result.png', {type:'image/png'});
-  if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-    try {
-      await navigator.share({files:[file]});
-    } catch(e) {
-      if (e.name !== 'AbortError') downloadImage();
-    }
-  } else {
-    downloadImage();
+  var blob = canvasToBlob(document.getElementById('shareCanvas'));
+  var file = new File([blob], 'worldcup-result.png', {type:'image/png'});
+  try {
+    await navigator.share({files:[file]});
+  } catch(e) {
+    if (e.name !== 'AbortError') downloadImage();
   }
 }
 
