@@ -124,40 +124,66 @@ var DONE=[
   {grp:'F',third:{team:'스웨덴',pts:4,gd:0,gf:7}},
 ];
 
-// G~L: MD2 standings + MD3 odds (Opta/Covers 6/26)
+// G~L: MD2 standings + MD3 odds + h2h from MD1/MD2
+// h = [[winner_idx, loser_idx], ...] known head-to-head wins
 var SIMS=[
   {grp:'G',st:[
     {t:'이집트',p:4,gf:4,ga:2},{t:'이란',p:2,gf:2,ga:2},
     {t:'벨기에',p:2,gf:1,ga:1},{t:'뉴질랜드',p:1,gf:3,ga:5}],
-    m:[[0,1,.42,.30,.28],[3,2,.15,.18,.67]]},
+    m:[[0,1,.42,.30,.28],[3,2,.15,.18,.67]],
+    h:[[0,3]]}, // Egypt beat NZ. All others drew.
   {grp:'H',st:[
     {t:'스페인',p:4,gf:4,ga:0},{t:'우루과이',p:2,gf:3,ga:3},
     {t:'카보베르데',p:2,gf:2,ga:2},{t:'사우디',p:1,gf:1,ga:5}],
-    m:[[2,3,.45,.28,.27],[1,0,.15,.22,.63]]},
+    m:[[2,3,.45,.28,.27],[1,0,.15,.22,.63]],
+    h:[[0,3]]}, // Spain beat Saudi. Others drew.
   {grp:'I',st:[
     {t:'프랑스',p:6,gf:6,ga:1},{t:'노르웨이',p:6,gf:7,ga:3},
     {t:'세네갈',p:0,gf:3,ga:6},{t:'이라크',p:0,gf:1,ga:7}],
-    m:[[1,0,.28,.25,.47],[2,3,.55,.25,.20]]},
+    m:[[1,0,.28,.25,.47],[2,3,.55,.25,.20]],
+    h:[[0,2],[0,3],[1,3],[1,2]]}, // France beat Senegal+Iraq, Norway beat Iraq+Senegal
   {grp:'J',st:[
     {t:'아르헨티나',p:6,gf:5,ga:0},{t:'오스트리아',p:3,gf:3,ga:3},
     {t:'알제리',p:3,gf:2,ga:4},{t:'요르단',p:0,gf:2,ga:5}],
-    m:[[2,1,.30,.28,.42],[3,0,.03,.10,.87]]},
+    m:[[2,1,.30,.28,.42],[3,0,.01,.07,.92]],
+    h:[[0,2],[0,1],[1,3],[2,3]]}, // Arg>Alg, Arg>Aus, Aus>Jor, Alg>Jor
   {grp:'K',st:[
     {t:'콜롬비아',p:6,gf:4,ga:1},{t:'포르투갈',p:4,gf:6,ga:1},
     {t:'DR콩고',p:1,gf:1,ga:2},{t:'우즈벡',p:0,gf:1,ga:8}],
-    m:[[3,2,.18,.22,.60],[0,1,.32,.28,.40]]},
+    m:[[3,2,.18,.22,.60],[0,1,.32,.28,.40]],
+    h:[[0,3],[0,2],[1,3]]}, // Col>Uzb, Col>DRC, Por>Uzb. Por drew DRC.
   {grp:'L',st:[
     {t:'잉글랜드',p:4,gf:4,ga:2},{t:'가나',p:4,gf:1,ga:0},
     {t:'크로아티아',p:3,gf:3,ga:4},{t:'파나마',p:0,gf:0,ga:2}],
-    m:[[2,1,.38,.28,.34],[3,0,.05,.12,.83]]},
+    m:[[2,1,.38,.28,.34],[3,0,.02,.08,.90]],
+    h:[[0,2],[1,3],[2,3]]}, // Eng>Cro, Gha>Pan, Cro>Pan. Eng drew Gha.
 ];
 
 var SW=[[1,0,.30],[2,0,.20],[2,1,.25],[3,0,.08],[3,1,.12],[4,1,.05]];
 var SD=[[0,0,.35],[1,1,.40],[2,2,.18],[3,3,.07]];
 function gs(t){var p=t===0?SW:SD,r=Math.random(),c=0;for(var i=0;i<p.length;i++){c+=p[i][2];if(r<c)return[p[i][0],p[i][1]];}return[p[0][0],p[0][1]];}
 function sm(pW,pD){var r=Math.random();if(r<pW){var s=gs(0);return[s[0],s[1]];}if(r<pW+pD){var s=gs(1);return[s[0],s[1]];}var s=gs(0);return[s[1],s[0]];}
-function getThird(st){var s=st.slice().sort(function(a,b){return(b.p-a.p)||((b.gf-b.ga)-(a.gf-a.ga))||(b.gf-a.gf);});var t=s[2];return{team:t.t,pts:t.p,gd:t.gf-t.ga,gf:t.gf};}
-function getFirst(st){var s=st.slice().sort(function(a,b){return(b.p-a.p)||((b.gf-b.ga)-(a.gf-a.ga))||(b.gf-a.gf);});return s[0].t;}
+
+// 2026 FIFA 규정: 승점 동률 시 승자승(h2h) 우선, 그 다음 전체 골득실/다득점
+function sortGroup(st, h2h){
+  var arr=st.map(function(t,i){return{t:t.t,p:t.p,gf:t.gf,ga:t.ga,idx:i};});
+  arr.sort(function(a,b){
+    if(b.p!==a.p) return b.p-a.p;
+    // h2h check
+    for(var k=0;k<h2h.length;k++){
+      if(h2h[k][0]===a.idx&&h2h[k][1]===b.idx) return -1; // a beat b
+      if(h2h[k][0]===b.idx&&h2h[k][1]===a.idx) return 1;  // b beat a
+    }
+    // h2h draw or not played → overall GD then GF
+    var da=a.gf-a.ga,db=b.gf-b.ga;
+    if(db!==da) return db-da;
+    return b.gf-a.gf;
+  });
+  return arr;
+}
+function getThird(st,h2h){var s=sortGroup(st,h2h);var t=s[2];return{team:t.t,pts:t.p,gd:t.gf-t.ga,gf:t.gf};}
+function getFirst(st,h2h){var s=sortGroup(st,h2h);return s[0].t;}
+// 조간 3위 비교: 승자승 없음, 승점→골득실→다득점 (FIFA 규정)
 function getRank(th){var a=th.slice().sort(function(a,b){return(b.pts-a.pts)||(b.gd-a.gd)||(b.gf-a.gf);});var k=-1;a.forEach(function(t,i){if(t.team==='한국')k=i+1;});return{sorted:a,kr:k};}
 
 var lastThirds=null,lastRank=0,lastOpp='',lastOppGrp='',eWin='독일',gWin='';
@@ -181,18 +207,19 @@ async function run(){
   var allRes=[];
   SIMS.forEach(function(g){
     var st=g.st.map(function(t){return{t:t.t,p:t.p,gf:t.gf,ga:t.ga};});
+    var h2h=g.h.slice(); // copy existing h2h
     var matches=[];
     g.m.forEach(function(m){
       var sc=sm(m[2],m[3]);
       st[m[0]].gf+=sc[0];st[m[0]].ga+=sc[1];
       st[m[1]].gf+=sc[1];st[m[1]].ga+=sc[0];
-      if(sc[0]>sc[1])st[m[0]].p+=3;
+      if(sc[0]>sc[1]){st[m[0]].p+=3;h2h.push([m[0],m[1]]);}
       else if(sc[0]===sc[1]){st[m[0]].p+=1;st[m[1]].p+=1;}
-      else st[m[1]].p+=3;
+      else{st[m[1]].p+=3;h2h.push([m[1],m[0]]);}
       matches.push({a:st[m[0]].t,b:st[m[1]].t,sa:sc[0],sb:sc[1]});
     });
-    var third=getThird(st);third.grp=g.grp;
-    if(g.grp==='G') gWin=getFirst(st);
+    var third=getThird(st,h2h);third.grp=g.grp;
+    if(g.grp==='G') gWin=getFirst(st,h2h);
     allRes.push({grp:g.grp,matches:matches,third:third});
   });
 
